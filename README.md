@@ -26,7 +26,7 @@ Export these before the `curl -fsSL ... | bash` line to skip prompts or override
 | `TAILSCALE_MODE` | `link`, `auth`, or `skip` (default `link`) |
 | `PROMPT_MODE=off` | Run non-interactively |
 
-The installer logs the Tailscale IP and WebUI port when it finishes; visit `http://<TAILSCALE_IP>:<PORT>` to continue building cloud-init payloads.
+The installer logs the Tailscale IP and WebUI port when it finishes; it now tries to resolve that IP from the container so you can copy-paste `http://<TAILSCALE_IP>:<PORT>` directly.
 
 ## Tailscale options
 

@@ -529,6 +529,21 @@ setup_tailscale() {
   fi
 }
 
+get_tailscale_ip() {
+  if [[ "$TAILSCALE_MODE" == "skip" ]]; then
+    return 1
+  fi
+  local ip
+  ip=$(pct exec "$CTID" -- bash -lc "if command -v tailscale >/dev/null 2>&1; then tailscale ip -4 2>/dev/null | head -n1; fi" 2>/dev/null || true)
+  ip="${ip//$'\r'/}"
+  ip="${ip//$'\n'/}"
+  if [[ -n "$ip" ]]; then
+    printf '%s' "$ip"
+    return 0
+  fi
+  return 1
+}
+
 # ========= WEBUI DEPLOYMENT =========
 deploy_webui() {
   log_info "Deploying Cloud-Init WebUI for Velocloud ${VELOCLOUD_VERSION}"
@@ -1234,7 +1249,12 @@ main() {
   deploy_webui
   log_ok "Cloud-Init Builder provisioning finished"
   printf '[%s] Cloud-Init Builder for Velocloud %s setup complete!\n' $'\u2713' "$VELOCLOUD_VERSION"
-  echo "Access WebUI: http://<TAILSCALE_IP>:${PORT}"
+  local tailscale_ip=""
+  if tailscale_ip=$(get_tailscale_ip); then
+    echo "Access WebUI: http://${tailscale_ip}:${PORT}"
+  else
+    echo "Access WebUI: http://<TAILSCALE_IP>:${PORT} (tailscale IP not yet detected)"
+  fi
 }
 
 # ========= ENTRYPOINT =========

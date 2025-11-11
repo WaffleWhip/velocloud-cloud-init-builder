@@ -1,6 +1,6 @@
 # Velocloud Single-File Builder
 
-This repo ships a single installer script that builds a Velocloud-ready Proxmox LXC, complete with cloud-init tooling, the Flask management WebUI, and optional Tailscale connectivity.
+This repo ships a single installer script that builds a Velocloud-ready Proxmox LXC, complete with cloud-init tooling, the Flask management WebUI, and optional tunneling via Tailscale.
 
 ## Quick install on Proxmox
 
@@ -26,6 +26,14 @@ Export these before the `curl … | sudo bash` line to skip prompts or override 
 | `PROMPT_MODE=off` | Run non-interactively |
 
 The installer echoes the Tailscale IP + WebUI port when it finishes; visit `http://<TAILSCALE_IP>:<PORT>` to continue building cloud-init payloads.
+
+## Networking
+
+Proof‑of‑concept deployments in this repository have been performed with **Tailscale** so you can quickly expose the WebUI and builder container across hosts without configuring complex VPNs. If you prefer a standalone VPN, WireGuard is another compatible option since the script only relies on Linux networking primitives.
+
+## Velocloud compatibility
+
+The installer has been tested with **Velocloud 4.5.0** only. Other versions may work, but incompatibilities are possible because newer packages or CLI changes were not validated yet.
 
 ## Verification
 

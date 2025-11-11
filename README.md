@@ -4,10 +4,10 @@ This repo ships a single installer script that builds a Velocloud-ready Proxmox 
 
 ## Quick install on Proxmox
 
-Run the installer directly from GitHub on any Proxmox host:
+Run the installer directly from GitHub on any Proxmox host (run as root or with PrivSep disabled):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/WaffleWhip/velocloud-cloud-init-builder/master/cloud-init-builder-velocloud.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/WaffleWhip/velocloud-cloud-init-builder/master/cloud-init-builder-velocloud.sh | bash
 ```
 
 ### Environment guards

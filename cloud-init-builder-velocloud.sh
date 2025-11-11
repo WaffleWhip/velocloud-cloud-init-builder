@@ -475,6 +475,7 @@ setup_tailscale() {
     fi
   else
     log_warn "TAILSCALE_KEY not provided. Skipping automatic tailscale up."
+    log_info "Once the container is ready run: pct exec ${CTID} -- tailscale up --ssh --accept-routes --qr"
   fi
 }
 

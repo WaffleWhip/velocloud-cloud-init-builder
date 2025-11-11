@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Cloud-Init Builder for Velocloud
 
 Automate the provisioning of a Velocloud-ready Proxmox LXC that bundles cloud-init ISO generation, a management WebUI, and optional Tailscale connectivity. This project modularises the original monolithic installer into reusable shell libraries suitable for production automation.
@@ -104,3 +105,74 @@ velocloud-cloud-init-builder/
 ## Author & License
 
 Maintained by Wahyu Athief (Waf). Released under the MIT License. See [LICENSE](LICENSE) for full terms.
+
+## Single-File Installer
+
+For quick deployment you can expose only the `cloud-init-builder-velocloud.sh` script via a public Git remote and have a Proxmox host fetch it directly with `curl`.
+
+1. Push this repository (or at least the installer script) to `https://github.com/WaffleWhip/velocloud-cloud-init-builder`.
+2. On the Proxmox shell run:
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/WaffleWhip/velocloud-cloud-init-builder/master/cloud-init-builder-velocloud.sh | sudo bash
+   ```
+
+3. Export any overrides before the `curl` if you want to bypass prompts or customize defaults, e.g.:
+
+   ```bash
+   CTID=2100 TAILSCALE_KEY=tskey-auth-XXXXXXXX PROMPT_MODE=off \
+     curl -fsSL … | sudo bash
+   ```
+
+| Env var | Purpose |
+|---------|---------|
+| `CTID`, `CTNAME`, `STORAGE`, `TEMPLATE_STORAGE`, `BRIDGE` | LXC placement and networking |
+| `CPU`, `MEMORY`, `ROOT_PASS`, `PORT` | Builder resource and WebUI credentials |
+| `TAILSCALE_KEY`, `VELOCLOUD_VERSION` | Networking/auth and Velocloud release |
+
+Read the script from the GitHub UI or download it manually before executing it if you need to verify it meets your policies.
+
+## Verification
+
+Once the container finishes provisioning, visit `http://<TAILSCALE_IP>:<PORT>` (the script will log the address) to access the WebUI and continue building cloud-init ISOs.
+=======
+# Velocloud Cloud-Init Builder
+
+This repository only needs to expose `cloud-init-builder-velocloud.sh` on a public Git remote so Proxmox CLI nodes can fetch-run it via `curl`.
+
+## Publish the repo
+1. Initialize Git (if you haven't already):
+   ```bash
+   git init
+   git add cloud-init-builder-velocloud.sh
+   git commit -m "Add Velocloud cloud-init builder script"
+   git branch -M main
+   git remote add origin https://github.com/<your-user>/velocloud-cloud-init-builder.git
+   git push -u origin main
+   ```
+2. Every time you update the script, commit and push the change so `curl` can grab the latest.
+
+## Run on Proxmox CLI
+Use the raw view of the script so you can pipe it into `sudo bash`. Example:
+```bash
+curl -fsSL https://raw.githubusercontent.com/<your-user>/velocloud-cloud-init-builder/main/cloud-init-builder-velocloud.sh | sudo bash
+```
+The script respects the following environment variables if you want to customize defaults without prompts (set them before running, e.g. `CTID=2100 TAILSCALE_KEY=tskey curl …`):
+
+| Variable | Purpose |
+|----------|---------|
+| `CTID` | Container ID (default 2000) |
+| `CTNAME` | Container hostname (default `velocloud-builder`) |
+| `STORAGE`/`TEMPLATE_STORAGE` | Storage pools for container disk and template |
+| `BRIDGE` | Network bridge for the container |
+| `CPU`, `MEMORY` | Resources for the builder |
+| `ROOT_PASS`, `PORT`, `TAILSCALE_KEY`, `VELOCLOUD_VERSION` | Credentials and service settings |
+
+Set `PROMPT_MODE=off` if you want a fully non-interactive run.
+
+## Verify before running
+Read through the script directly from GitHub (via the web UI) or download it manually (`curl -fsSL … -o cloud-init-builder-velocloud.sh`) if you need to inspect it before executing.
+
+## Next steps
+Once the container is created and the WebUI starts, connect via Tailscale and open `http://<TAILSCALE_IP>:${PORT}` to finish configuration.
+>>>>>>> 3e7aafa (Add README and installer script)

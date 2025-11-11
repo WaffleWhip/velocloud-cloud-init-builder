@@ -25,14 +25,14 @@ Export these before the `curl -fsSL ... | bash` line to skip prompts or override
 | `TAILSCALE_KEY`, `VELOCLOUD_VERSION` | Tailscale auth key and Velocloud release |
 | `PROMPT_MODE=off` | Run non-interactively |
 
-The installer logs the Tailscale IP + WebUI port when it finishes; visit `http://<TAILSCALE_IP>:<PORT>` to continue building cloud-init payloads.
+The installer logs the Tailscale IP and WebUI port when it finishes; visit `http://<TAILSCALE_IP>:<PORT>` to continue building cloud-init payloads.
 
 ## Tailscale options
 
 Choose how the builder joins your tailnet:
 
-1. **Use an auth key** – export `TAILSCALE_KEY=tskey-auth-...` before running the script so it can call `tailscale up --auth-key=...` inside the container.
-2. **Use a login link** – leave the key unset; after the installer completes run `pct exec <CTID> -- tailscale up --ssh --accept-routes --qr`. That command prints a short-lived login URL/QR (and the CLI waits until you visit it), so open or scan it to finish the tailnet join manually.
+1. **Use an auth key** - export `TAILSCALE_KEY=tskey-auth-...` before running the script so it can call `tailscale up --auth-key=...` inside the container.
+2. **Use a login link** - leave the key unset; after the installer completes run `pct exec <CTID> -- tailscale up --ssh --accept-routes --qr`. That command prints a short-lived login URL/QR (and the CLI waits until you visit it), so open or scan it to finish the tailnet join manually.
 
 The installer logs the second command automatically if it detects no auth key was supplied.
 

@@ -507,10 +507,6 @@ setup_tailscale() {
     return
   fi
   log_info "Installing Tailscale inside container"
-  if [[ "$TAILSCALE_MODE" == "skip" ]]; then
-    log_info "Skipping Tailscale installation (mode=skip)."
-    return
-  fi
   pct exec "$CTID" -- bash -lc "set -e; curl -fsSL https://tailscale.com/install.sh | sh"
   pct exec "$CTID" -- bash -lc "set -e; systemctl enable --now tailscaled"
   if [[ "$TAILSCALE_MODE" == "auth" ]]; then

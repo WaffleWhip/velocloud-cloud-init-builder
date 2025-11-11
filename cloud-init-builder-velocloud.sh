@@ -8,7 +8,7 @@ IFS=$'\n\t'
 # ========= GLOBAL CONFIG =========
 SCRIPT_NAME="$(basename "$0")"
 
-DEFAULT_CTID=2000
+DEFAULT_CTID=450
 DEFAULT_CTNAME="velocloud-builder"
 DEFAULT_STORAGE="local-lvm"
 DEFAULT_TEMPLATE_STORAGE="local"
@@ -19,9 +19,11 @@ DEFAULT_ROOT_PASS="velocloud123"
 DEFAULT_PORT=8080
 DEFAULT_TAILSCALE_KEY=""
 DEFAULT_VELOCLOUD_VERSION="4.5.0"
+DEFAULT_TAILSCALE_MODE="link"
 MIN_CTID=100
 
 CTID="${CTID:-$DEFAULT_CTID}"
+TAILSCALE_MODE="${TAILSCALE_MODE:-$DEFAULT_TAILSCALE_MODE}"
 CTNAME="${CTNAME:-$DEFAULT_CTNAME}"
 STORAGE="${STORAGE:-$DEFAULT_STORAGE}"
 TEMPLATE_STORAGE="${TEMPLATE_STORAGE:-$DEFAULT_TEMPLATE_STORAGE}"
@@ -230,19 +232,41 @@ customize_configuration() {
     [[ -n "$value" ]] && ROOT_PASS="$value"
   fi
 
-  if [[ -z "$TAILSCALE_KEY" ]]; then
+  if [[ "$PROMPT_MODE" != "off" && have_tty ]]; then
     tty_print ""
-    tty_print "Provide a reusable Tailscale auth key to auto-connect this container."
-    tty_print "Expected format: tskey-auth-XXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-    tty_print "Leave blank to skip auto-join and configure later from the WebUI or shell."
-    local key
-    key=$(prompt_value "Tailscale auth key: " "")
-    if [[ -n "$key" ]]; then
-      TAILSCALE_KEY="$key"
-      if ! [[ "$TAILSCALE_KEY" =~ ^tskey-auth-[A-Za-z0-9_-]{10,}$ ]]; then
-        log_warn "Provided Tailscale auth key does not match the typical tskey-auth- format. Double-check before proceeding."
+    tty_print "Tailscale install options:"
+    tty_print "  1) Join via login link"
+    tty_print "  2) Join with auth key"
+    tty_print "  3) Skip Tailscale installation"
+    local mode_input
+    mode_input=$(prompt_value "Select mode [1-3, default ${TAILSCALE_MODE}]: " "$TAILSCALE_MODE")
+    case "${mode_input,,}" in
+      1|link) TAILSCALE_MODE="link" ;;
+      2|auth) TAILSCALE_MODE="auth" ;;
+      3|skip) TAILSCALE_MODE="skip" ;;
+      *)
+        tty_print "Invalid selection; keeping ${TAILSCALE_MODE}."
+        ;;
+    esac
+  fi
+
+  if [[ "$TAILSCALE_MODE" == "auth" ]]; then
+    if [[ -z "$TAILSCALE_KEY" ]]; then
+      tty_print ""
+      tty_print "Provide a reusable Tailscale auth key to auto-connect this container."
+      tty_print "Expected format: tskey-auth-XXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      tty_print "Leave blank to skip auto-join and configure later from the WebUI or shell."
+      local key
+      key=$(prompt_value "Tailscale auth key: " "")
+      if [[ -n "$key" ]]; then
+        TAILSCALE_KEY="$key"
+        if ! [[ "$TAILSCALE_KEY" =~ ^tskey-auth-[A-Za-z0-9_-]{10,}$ ]]; then
+          log_warn "Provided Tailscale auth key does not match the typical tskey-auth- format. Double-check before proceeding."
+        fi
       fi
     fi
+  else
+    TAILSCALE_KEY=""
   fi
 
   tty_print ""
@@ -265,6 +289,7 @@ Options:
   --root-pass <pass>        Root password (default: $DEFAULT_ROOT_PASS)
   --port <port>             WebUI port (default: $DEFAULT_PORT)
   --auth-key <key>          Tailscale auth key for auto-join
+  --tailscale-mode <mode>   Tailscale install mode: link|auth|skip (default: $DEFAULT_TAILSCALE_MODE)
   --velocloud-version <ver> Target Velocloud version (default: $DEFAULT_VELOCLOUD_VERSION)
   --prompt                  Force interactive prompts even if defaults exist
   --no-prompt               Disable interactive prompts
@@ -298,6 +323,7 @@ validate_parameters() {
   [[ -n "$STORAGE" ]] || die "STORAGE cannot be empty."
   [[ -n "$TEMPLATE_STORAGE" ]] || die "TEMPLATE_STORAGE cannot be empty."
   [[ -n "$BRIDGE" ]] || die "BRIDGE cannot be empty."
+  [[ "$TAILSCALE_MODE" =~ ^(link|auth|skip)$ ]] || die "TAILSCALE_MODE must be 'link', 'auth', or 'skip'."
   [[ -n "$VELOCLOUD_VERSION" ]] || die "Velocloud version cannot be empty."
 }
 
@@ -460,22 +486,50 @@ EOF
   log_ok "Dependencies installed"
 }
 
+run_tailscale_login_link() {
+  if ! have_tty; then
+    log_warn "No TTY available for interactive tailnet login."
+    return 1
+  fi
+  log_info "Running tailscale up --ssh --accept-routes --qr inside container (follow the URL/QR)."
+  if pct exec "$CTID" -- bash -lc "set -e; tailscale up --ssh --accept-routes --qr"; then
+    log_ok "Tailscale joined via login link."
+    return 0
+  else
+    log_warn "tailscale up --qr failed or was cancelled."
+    return 1
+  fi
+}
+
 setup_tailscale() {
+  if [[ "$TAILSCALE_MODE" == "skip" ]]; then
+    log_info "Skipping Tailscale installation (mode=skip)."
+    return
+  fi
   log_info "Installing Tailscale inside container"
+  if [[ "$TAILSCALE_MODE" == "skip" ]]; then
+    log_info "Skipping Tailscale installation (mode=skip)."
+    return
+  fi
   pct exec "$CTID" -- bash -lc "set -e; curl -fsSL https://tailscale.com/install.sh | sh"
   pct exec "$CTID" -- bash -lc "set -e; systemctl enable --now tailscaled"
-  if [[ -n "$TAILSCALE_KEY" ]]; then
-    log_info "Attempting Tailscale login with provided auth key"
-    local quoted_key
-    quoted_key=$(printf '%q' "$TAILSCALE_KEY")
-    if pct exec "$CTID" -- bash -lc "set -e; tailscale up --auth-key=${quoted_key} --ssh --accept-routes"; then
-      log_ok "Tailscale joined tailnet using provided auth key"
+  if [[ "$TAILSCALE_MODE" == "auth" ]]; then
+    if [[ -n "$TAILSCALE_KEY" ]]; then
+      log_info "Attempting Tailscale login with provided auth key"
+      local quoted_key
+      quoted_key=$(printf '%q' "$TAILSCALE_KEY")
+      if pct exec "$CTID" -- bash -lc "set -e; tailscale up --auth-key=${quoted_key} --ssh --accept-routes"; then
+        log_ok "Tailscale joined tailnet using provided auth key"
+      else
+        log_warn "tailscale up failed. You may need to provide a fresh auth key manually."
+      fi
     else
-      log_warn "tailscale up failed. You may need to provide a fresh auth key manually."
+      log_warn "TAILSCALE_KEY not provided for auth mode."
     fi
-  else
-    log_warn "TAILSCALE_KEY not provided. Skipping automatic tailscale up."
-    log_info "Once the container is ready run: pct exec ${CTID} -- tailscale up --ssh --accept-routes --qr"
+  elif [[ "$TAILSCALE_MODE" == "link" ]]; then
+    if ! run_tailscale_login_link; then
+      log_info "Run: pct exec ${CTID} -- tailscale up --ssh --accept-routes --qr"
+    fi
   fi
 }
 
@@ -1239,6 +1293,11 @@ parse_args() {
       --auth-key|--tailscale-auth-key)
         [[ -n "${2:-}" ]] || die "--auth-key requires a value."
         TAILSCALE_KEY="$2"
+        shift 2
+        ;;
+      --tailscale-mode)
+        [[ -n "${2:-}" ]] || die "--tailscale-mode requires a value."
+        TAILSCALE_MODE="$2"
         shift 2
         ;;
       --velocloud-version)

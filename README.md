@@ -16,13 +16,14 @@ Export these before the `curl -fsSL ... | bash` line to skip prompts or override
 
 | Variable | Purpose |
 |----------|---------|
-| `CTID` | Proxmox container ID (default `2000`) |
+| `CTID` | Proxmox container ID (default `450`) |
 | `CTNAME` | Container hostname (default `velocloud-builder`) |
 | `STORAGE`, `TEMPLATE_STORAGE` | Disk/template storage pools |
 | `BRIDGE` | Network bridge (default `vmbr0`) |
 | `CPU`, `MEMORY` | Container resources |
 | `ROOT_PASS`, `PORT` | Root password and WebUI port |
 | `TAILSCALE_KEY`, `VELOCLOUD_VERSION` | Tailscale auth key and Velocloud release |
+| `TAILSCALE_MODE` | `link`, `auth`, or `skip` (default `link`) |
 | `PROMPT_MODE=off` | Run non-interactively |
 
 The installer logs the Tailscale IP and WebUI port when it finishes; visit `http://<TAILSCALE_IP>:<PORT>` to continue building cloud-init payloads.
@@ -31,8 +32,9 @@ The installer logs the Tailscale IP and WebUI port when it finishes; visit `http
 
 Choose how the builder joins your tailnet:
 
-1. **Use an auth key** - export `TAILSCALE_KEY=tskey-auth-...` before running the script so it can call `tailscale up --auth-key=...` inside the container.
-2. **Use a login link** - leave the key unset; after the installer completes run `pct exec <CTID> -- tailscale up --ssh --accept-routes --qr`. That command prints a short-lived login URL/QR (and the CLI waits until you visit it), so open or scan it to finish the tailnet join manually.
+1. **Use an auth key** - set `TAILSCALE_MODE=auth` (or select option 2 in the interactive menu) and export `TAILSCALE_KEY=tskey-auth-...` before running the script so it can call `tailscale up --auth-key=...` inside the container.
+2. **Use a login link** - keep `TAILSCALE_MODE=link` (default) or choose option 1 in the interactive menu; the script runs `tailscale up --ssh --accept-routes --qr` inside the container and prints a URL/QR for you to finish the join.
+3. **Skip Tailscale** - set `TAILSCALE_MODE=skip` (or choose option 3) to omit Tailscale installation entirely.
 
 The installer logs the second command automatically if it detects no auth key was supplied.
 
